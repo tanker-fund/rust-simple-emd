@@ -52,6 +52,7 @@ typedef struct node2_t {
 
 
 /* GLOBAL VARIABLE DECLARATION */
+static double _epsilon;
 static int _n1, _n2;                          /* SIGNATURES SIZES */
 static float _C[MAX_SIG_SIZE1][MAX_SIG_SIZE1];/* THE COST MATRIX */
 static node2_t _X[MAX_SIG_SIZE1*2];            /* THE BASIC VARIABLES VECTOR */
@@ -64,8 +65,8 @@ static float _maxC;
 
 /* DECLARATION OF FUNCTIONS */
 static float init(signature_t *Signature1, signature_t *Signature2,
-		  float (*Dist)(feature_t *, feature_t *));
-static void findBasicVariables(node1_t *U, node1_t *V);
+		  float (*Dist)(feature_t *, feature_t *), double epsilon);
+static int findBasicVariables(node1_t *U, node1_t *V);
 static int isOptimal(node1_t *U, node1_t *V);
 static int findLoop(node2_t **Loop);
 static void newSol();
@@ -100,7 +101,7 @@ where
 
 float emd(signature_t *Signature1, signature_t *Signature2,
 	  float (*Dist)(feature_t *, feature_t *),
-	  flow_t *Flow, int *FlowSize)
+	  flow_t *Flow, int *FlowSize, double epsilon)
 {
   int itr;
   double totalCost;
@@ -109,7 +110,7 @@ float emd(signature_t *Signature1, signature_t *Signature2,
   flow_t *FlowP;
   node1_t U[MAX_SIG_SIZE1], V[MAX_SIG_SIZE1];
 
-  w = init(Signature1, Signature2, Dist);
+  w = init(Signature1, Signature2, Dist, epsilon);
 
 #if DEBUG_LEVEL > 1
   printf("\nINITIAL SOLUTION:\n");
@@ -121,7 +122,8 @@ float emd(signature_t *Signature1, signature_t *Signature2,
       for (itr = 1; itr < MAX_ITERATIONS; itr++)
 	{
 	  /* FIND BASIC VARIABLES */
-	  findBasicVariables(U, V);
+    if (findBasicVariables(U, V) < 0) 
+      return -1.0f;
 	  
 	  /* CHECK FOR OPTIMALITY */
 	  if (isOptimal(U, V))
@@ -181,7 +183,7 @@ float dist(feature_t *F1, feature_t *F2) {
 }
 
 
-float simple_emd(float *values1, float *values2, int size) {
+float simple_emd(float *values1, float *values2, int size, double epsilon) {
   float *weights1 = (float *)malloc(sizeof(float) * size);
   float *weights2 = (float *)malloc(sizeof(float) * size);
   for (int i = 0; i < size; i++) {
@@ -200,7 +202,7 @@ float simple_emd(float *values1, float *values2, int size) {
   s2->Features = values2;
   s2->Weights = weights2;
 
-  float result = emd(s1, s2, dist, 0, 0);
+  float result = emd(s1, s2, dist, 0, 0, epsilon);
 
   free(weights1);
   free(weights2);
@@ -217,13 +219,21 @@ float simple_emd(float *values1, float *values2, int size) {
    init
 **********************/
 static float init(signature_t *Signature1, signature_t *Signature2, 
-		  float (*Dist)(feature_t *, feature_t *))
+		  float (*Dist)(feature_t *, feature_t *), double epsilon)
 {
   int i, j;
   double sSum, dSum, diff;
   feature_t *P1, *P2;
   double S[MAX_SIG_SIZE1], D[MAX_SIG_SIZE1];
  
+  if (epsilon < 0)
+    {
+      _epsilon = EPSILON;
+    } 
+  else 
+    {
+      _epsilon = epsilon;
+    }
   _n1 = Signature1->n;
   _n2 = Signature2->n;
 
@@ -261,7 +271,7 @@ static float init(signature_t *Signature1, signature_t *Signature2,
 
   /* IF SUPPLY DIFFERENT THAN THE DEMAND, ADD A ZERO-COST DUMMY CLUSTER */
   diff = sSum - dSum;
-  if (fabs(diff) >= EPSILON * sSum)
+  if (fabs(diff) >= _epsilon * sSum)
     {
       if (diff < 0.0)
 	{
@@ -301,7 +311,7 @@ static float init(signature_t *Signature1, signature_t *Signature2,
 /**********************
     findBasicVariables
  **********************/
-static void findBasicVariables(node1_t *U, node1_t *V)
+static int findBasicVariables(node1_t *U, node1_t *V)
 {
   int i, j, found;
   int UfoundNum, VfoundNum;
@@ -425,12 +435,14 @@ static void findBasicVariables(node1_t *U, node1_t *V)
 	}
      if (! found)
        {
-	 fprintf(stderr, "emd: Unexpected error in findBasicVariables!\n");
-	 fprintf(stderr, "This typically happens when the EPSILON defined in\n");
-	 fprintf(stderr, "emd.h is not right for the scale of the problem.\n");
-	 exit(1);
+	//  fprintf(stderr, "emd: Unexpected error in findBasicVariables!\n");
+	//  fprintf(stderr, "This typically happens when the epsilon defined\n");
+	//  fprintf(stderr, "is not right for the scale of the problem.\n");
+	//  exit(1);
+         return -1;
        }
     }
+  return 0;
 }
 
 
@@ -473,10 +485,10 @@ static int isOptimal(node1_t *U, node1_t *V)
    _EnterX->j = minJ;
    
    /* IF NO NEGATIVE deltaMin, WE FOUND THE OPTIMAL SOLUTION */
-   return deltaMin >= -EPSILON * _maxC;
+   return deltaMin >= -_epsilon * _maxC;
 
 /*
-   return deltaMin >= -EPSILON;
+   return deltaMin >= -_epsilon;
  */
 }
 
@@ -775,7 +787,7 @@ static void russel(double *S, double *D)
 		  
 		  /* IF NEEDED, ADJUST THE RELEVANT Delta[*][j] */
 		  diff = oldVal - CurV->val;
-		  if (fabs(diff) < EPSILON * _maxC)
+		  if (fabs(diff) < _epsilon * _maxC)
 		    for (CurU=uHead.Next; CurU != NULL; CurU=CurU->Next)
 		      Delta[CurU->i][j] += diff;
 		}
@@ -802,7 +814,7 @@ static void russel(double *S, double *D)
 		  
 		  /* If NEEDED, ADJUST THE RELEVANT Delta[i][*] */
 		  diff = oldVal - CurU->val;
-		  if (fabs(diff) < EPSILON * _maxC)
+		  if (fabs(diff) < _epsilon * _maxC)
 		    for (CurV=vHead.Next; CurV != NULL; CurV=CurV->Next)
 		      Delta[i][CurV->i] += diff;
 		}
@@ -823,7 +835,7 @@ static void addBasicVariable(int minI, int minJ, double *S, double *D,
 {
   double T;
   
-  if (fabs(S[minI]-D[minJ]) <= EPSILON * _maxW)  /* DEGENERATE CASE */
+  if (fabs(S[minI]-D[minJ]) <= _epsilon * _maxW)  /* DEGENERATE CASE */
     {
       T = S[minI];
       S[minI] = 0;

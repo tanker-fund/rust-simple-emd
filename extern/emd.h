@@ -20,8 +20,7 @@
 #define MAX_SIG_SIZE   100
 #define MAX_ITERATIONS 500
 #define INFINITY       1e20
-// #define EPSILON        1e-6
-#define EPSILON        1e-4
+#define EPSILON        1e-6
 
 /*****************************************************************************/
 /* feature_t SHOULD BE MODIFIED BY THE USER TO REFLECT THE FEATURE TYPE      */
@@ -54,8 +53,8 @@ typedef struct
 
 float emd(signature_t *Signature1, signature_t *Signature2,
 	  float (*func)(feature_t *, feature_t *),
-	  flow_t *Flow, int *FlowSize);
+	  flow_t *Flow, int *FlowSize, double epsilon);
 
-float simple_emd(float *values1, float *values2, int size);
+float simple_emd(float *values1, float *values2, int size, double epsilon);
 
 #endif

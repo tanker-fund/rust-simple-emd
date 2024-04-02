@@ -20,7 +20,8 @@
 #define MAX_SIG_SIZE   100
 #define MAX_ITERATIONS 500
 #define INFINITY       1e20
-#define EPSILON        1e-6
+// #define EPSILON        1e-6
+#define EPSILON        1e-4
 
 /*****************************************************************************/
 /* feature_t SHOULD BE MODIFIED BY THE USER TO REFLECT THE FEATURE TYPE      */

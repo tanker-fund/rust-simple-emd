@@ -1,0 +1,16 @@
+[package]
+name = "simple_emd"
+version = "0.1.0"
+authors = ["Jeongmin Byun <jmbyun91@gmail.com>"]
+description = "A library for computing the Earth Mover's Distance"
+repository = "https://github.com/tanker-fund/rust-simple-emd"
+license = "MIT"
+edition = "2018"
+build = "build.rs"
+links = "emd"
+
+[build-dependencies]
+cc = "^1.0.37"
+
+[dependencies]
+libc = "^0.2"
